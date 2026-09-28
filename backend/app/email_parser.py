@@ -53,6 +53,6 @@ def parse_message(msg: dict) -> dict:
         "sender_email": address.lower(),
         "subject": headers.get("subject", "(no subject)"),
         "date": headers.get("date", ""),
-        "snippet": msg.get("snippet", ""),
+        "snippet": unescape(msg.get("snippet", "")),
         "body": extract_body(payload)[:MAX_BODY_CHARS],
     }

@@ -57,3 +57,8 @@ def test_truncates_long_body():
     msg = {"id": "5", "payload": {"mimeType": "text/plain", "headers": [],
                                   "body": {"data": _b64("a" * 10000)}}}
     assert len(parse_message(msg)["body"]) == MAX_BODY_CHARS
+    
+def test_snippet_is_html_unescaped():
+    msg = {"id": "6", "snippet": "Send the &quot;invoice&quot; &amp; receipt",
+           "payload": {"headers": []}}
+    assert parse_message(msg)["snippet"] == 'Send the "invoice" & receipt'
