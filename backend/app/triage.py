@@ -41,3 +41,39 @@ def triage_email(email: dict) -> dict:
         raise TriageError(f"Gemini returned an unknown category: {result!r}")
 
     return {"category": category, "reason": result.get("reason", "")}
+
+BATCH_SYSTEM_INSTRUCTION = """You triage a batch of emails for a busy student/freelancer.
+For EACH email, classify into exactly one category:
+- "reply": needs a written response (a question, a request, feedback to acknowledge)
+- "schedule": is proposing or asking about a meeting, call, or interview slot
+- "deadline": mentions a due date, submission date, or expiry the user must track
+- "ignore": newsletters, promotions, automated digests, or anything needing no action
+
+Respond with ONLY a JSON array, no markdown, matching the input order:
+[{"id": "<same id as input>", "category": "...", "reason": "one short sentence"}, ...]
+"""
+
+
+def triage_batch(emails: list[dict]) -> dict[str, dict]:
+    """Classify several emails in one Gemini call. Returns {id: {category, reason}}."""
+    if not emails:
+        return {}
+
+    numbered = "\n\n".join(
+        f"id: {e['id']}\nSubject: {e['subject']}\nFrom: {e['sender_name']} <{e['sender_email']}>\nBody: {e['body']}"
+        for e in emails
+    )
+    raw = generate_text(numbered, system_instruction=BATCH_SYSTEM_INSTRUCTION)
+    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise TriageError(f"Gemini did not return a valid JSON array: {raw!r}") from exc
+
+    results = {}
+    for item in parsed:
+        category = item.get("category")
+        if category in VALID_CATEGORIES and "id" in item:
+            results[item["id"]] = {"category": category, "reason": item.get("reason", "")}
+    return results
