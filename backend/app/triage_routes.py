@@ -8,7 +8,7 @@ from app.triage import BATCH_SYSTEM_INSTRUCTION, TriageError, triage_batch
 
 router = APIRouter(prefix="/triage", tags=["triage"])
 
-CHUNK_SIZE = 6
+CHUNK_SIZE = 25
 
 def _triage_batch(emails: list[dict]) -> list[dict]:
     safe_emails, sensitive_ids = [], set()
