@@ -41,3 +41,6 @@ def update_action_status(action_id: int, status: str) -> bool:
     with db_session() as conn:
         cursor = conn.execute("UPDATE actions SET status = ? WHERE id = ?", (status, action_id))
         return cursor.rowcount > 0
+    
+def count_actions(*, source: str | None = None, status: str | None = None) -> int:
+    return len(list_actions(source=source, status=status))
