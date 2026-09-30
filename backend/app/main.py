@@ -10,6 +10,7 @@ from app.db import init_db
 from app.actions_routes import router as actions_router
 from app.draft_routes import router as draft_router
 from app.approval_routes import router as approval_router
+from app.calendar_routes import router as calendar_router
 
 app = FastAPI(title="Inbox Copilot API", version="0.1.0")
 init_db()
@@ -30,6 +31,7 @@ app.include_router(triage_router)
 app.include_router(actions_router)
 app.include_router(draft_router)
 app.include_router(approval_router)
+app.include_router(calendar_router)
 
 @app.get("/health")
 def health() -> dict:
