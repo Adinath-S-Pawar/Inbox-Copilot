@@ -5,13 +5,14 @@ from googleapiclient.errors import HttpError
 
 from app import google_auth
 from app.gmail_service import NotAuthenticatedError
+from zoneinfo import ZoneInfo
 
 # Only suggest slots within normal working hours.
 WORK_START_HOUR = 9
 WORK_END_HOUR = 18
 LOOKAHEAD_DAYS = 7
 SLOT_DURATION_MINUTES = 30
-
+LOCAL_TZ = ZoneInfo("Asia/Kolkata")
 
 def _service():
     creds = google_auth.load_credentials()
@@ -40,10 +41,10 @@ def _overlaps_any(start: datetime, end: datetime, busy_periods: list[tuple[datet
 
 
 def find_free_slots(max_slots: int = 3) -> list[dict]:
-    """Return up to max_slots candidate meeting times within working hours,
+    """Return up to max_slots candidate meeting times within working hours (IST),
     over the next LOOKAHEAD_DAYS, that don't overlap anything on the calendar."""
     service = _service()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(LOCAL_TZ)
     time_max = now + timedelta(days=LOOKAHEAD_DAYS)
     busy_periods = _fetch_busy_periods(service, now, time_max)
 
