@@ -15,6 +15,7 @@ class Settings:
     google_token_file: str = os.getenv("GOOGLE_TOKEN_FILE", "token.json")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    database_file: str = os.getenv("DATABASE_FILE", "inbox_copilot.db")
 
 
 settings = Settings()

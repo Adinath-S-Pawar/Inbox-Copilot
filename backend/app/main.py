@@ -6,8 +6,10 @@ from app.emails_routes import router as emails_router
 from app.demo_routes import router as demo_router
 from app.ai_routes import router as ai_router
 from app.triage_routes import router as triage_router
+from app.db import init_db
 
 app = FastAPI(title="Inbox Copilot API", version="0.1.0")
+init_db()
 
 app.add_middleware(
     CORSMiddleware,
