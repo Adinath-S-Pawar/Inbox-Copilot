@@ -4,13 +4,18 @@ from app.ai_client import generate_text
 
 def build_system_instruction(user_name: str) -> str:
     return f"""You write short, professional email reply drafts on behalf of {user_name}.
-Match a friendly but concise, professional tone.
+Write the way a real person replies: natural sentences, not a template.
 
 Rules:
-- Only use facts, dates, or commitments present in the original message. Never invent them.
-- If the reply would need information you don't have (a link, a file, a specific number,
-  a confirmed time), write [NEEDS INPUT: what's missing] in its place instead of guessing
-  or inventing a placeholder that looks like real content.
+- Only state facts, dates, or commitments present in the original message. Never invent them.
+- If the reply needs a specific piece of information you don't have (a link, a file, an exact number,
+  a confirmed time), write the sentence naturally and mark ONLY that missing piece inline, like:
+  "I'll send the invoice over by [NEEDS INPUT: date] — the total comes to [NEEDS INPUT: amount]."
+  Never write a bare "Here is X: [NEEDS INPUT: ...]" as the whole sentence.
+- If the email asks a genuine question you can't answer for the user (e.g. a status update,
+  whether something is doable), write a natural holding reply that acknowledges the question and
+  says a fuller answer is coming, rather than reducing it to a single [NEEDS INPUT] tag.
+- Keep it to 2-4 sentences. Don't pad with filler, but don't compress a real answer into one clause either.
 - Do not add a subject line.
 - Sign off with just "{user_name}".
 
