@@ -20,7 +20,7 @@ def test_generate_drafts_fills_reply_actions(monkeypatch):
                                         subject="Invoice", sender_name="Priya",
                                         sender_email="priya@example.com", reason="needs reply")
     monkeypatch.setattr(draft_routes, "draft_replies",
-                          lambda actions: {"s02": "Hi Priya, here it is.\nAarav"})
+                           lambda actions, **kwargs: {"s02": "Hi Priya, here it is.\nAarav"})
     response = client.post("/drafts/generate?source=demo")
     assert response.json() == {"drafted": 1, "requested": 1}
     assert get_action(action_id)["draft_text"] == "Hi Priya, here it is.\nAarav"
@@ -36,6 +36,6 @@ def test_generate_drafts_does_not_redo_existing(monkeypatch):
                             sender_name="Priya", sender_email="priya@example.com",
                             reason="needs reply", draft_text="already drafted")
     called = []
-    monkeypatch.setattr(draft_routes, "draft_replies", lambda actions: called.append(1) or {})
+    monkeypatch.setattr(draft_routes, "draft_replies", lambda actions, **kwargs: called.append(1) or {})
     client.post("/drafts/generate?source=demo")
     assert called == []  # nothing pending needed a draft, so Gemini was never called
