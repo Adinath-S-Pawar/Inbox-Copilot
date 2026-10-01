@@ -44,5 +44,5 @@ def test_sync_is_idempotent(monkeypatch):
     monkeypatch.setattr(deadline_routes, "extract_deadlines", lambda actions: {"s05": "2026-10-10"})
     client.post("/deadlines/sync?source=demo")
     second = client.post("/deadlines/sync?source=demo")
-    assert second.json()["synced"] == 1  # the action is still "pending" so it's requested again...
-    assert len(list_deadlines(source="demo")) == 1  # ...but create_deadline's UNIQUE guard prevents a duplicate row
+    assert second.json()["synced"] == 0  # already stored, so the duplicate guard blocks it
+    assert len(list_deadlines(source="demo")) == 1  # still just one row, not two
