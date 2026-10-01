@@ -68,17 +68,15 @@ export default function App() {
   const [actions, setActions] = useState([])
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
-  const [error, setError] = useState(null)
-  const [toast, setToast] = useState(null) // { message, type: 'success' | 'error' }
+  const [toast, setToast] = useState(null)
 
   const loadActions = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const data = await api.getActions(source, 'pending')
       setActions(data.actions)
     } catch (err) {
-      setError(err.message)
+      showToast(err.message, 'error')
     } finally {
       setLoading(false)
     }
@@ -96,28 +94,26 @@ export default function App() {
 
   async function handleSync() {
     setLoading(true)
-    setError(null)
     try {
       await api.syncInbox(source)
       await api.generateDrafts(source)
       await loadActions()
     } catch (err) {
-      setError(err.message)
+      showToast(err.message, 'error')
+    } finally {
       setLoading(false)
     }
   }
 
-      async function withBusy(id, fn) {
-    if (inFlightRef.current.has(id)) return // already running; ignore extra clicks
+  async function withBusy(id, fn) {
+    if (inFlightRef.current.has(id)) return
     inFlightRef.current.add(id)
     setBusyId(id)
-    setError(null)
     try {
       const message = await fn()
       await loadActions()
       if (message) showToast(message, 'success')
     } catch (err) {
-      setError(err.message)
       showToast(err.message, 'error')
     } finally {
       inFlightRef.current.delete(id)
@@ -188,10 +184,6 @@ export default function App() {
           <span className="text-sm text-slate-500">{actions.length} pending</span>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>
-        )}
-
         <div className="space-y-3">
           {actions.map((action) => (
             <ActionCard key={action.id} action={action} busy={busyId === action.id}
@@ -204,7 +196,7 @@ export default function App() {
         </div>
       </div>
 
-            {toast && (
+      {toast && (
         <div className={`fixed top-5 right-5 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border
           ${toast.type === 'success' ? 'bg-green-50 text-green-800 border-green-300' : 'bg-red-50 text-red-800 border-red-300'}`}>
           <span>{toast.message}</span>
