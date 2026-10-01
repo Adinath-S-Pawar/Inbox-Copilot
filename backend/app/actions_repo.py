@@ -64,3 +64,23 @@ def set_proposed_time(action_id: int, proposed_time: str) -> bool:
             "UPDATE actions SET proposed_time = ? WHERE id = ?", (proposed_time, action_id)
         )
         return cursor.rowcount > 0
+    
+def create_deadline(*, source: str, email_id: str, subject: str, due_date: str | None) -> int | None:
+    with db_session() as conn:
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO deadlines (source, email_id, subject, due_date) VALUES (?, ?, ?, ?)",
+            (source, email_id, subject, due_date),
+        )
+        return cursor.lastrowid if cursor.rowcount else None
+
+
+def list_deadlines(*, source: str | None = None) -> list[dict]:
+    query = "SELECT * FROM deadlines WHERE 1=1"
+    params: list = []
+    if source:
+        query += " AND source = ?"
+        params.append(source)
+    query += " ORDER BY (due_date IS NULL), due_date ASC"
+    with db_session() as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
