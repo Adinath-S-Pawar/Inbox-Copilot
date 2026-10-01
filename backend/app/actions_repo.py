@@ -83,3 +83,14 @@ def list_deadlines(*, source: str | None = None) -> list[dict]:
     with db_session() as conn:
         rows = conn.execute(query, params).fetchall()
         return [dict(row) for row in rows]
+    
+def list_proposed_times(*, source: str, exclude_id: int | None = None) -> list[str]:
+    query = """SELECT proposed_time FROM actions
+               WHERE source = ? AND category = 'schedule' AND status = 'pending' AND proposed_time IS NOT NULL"""
+    params: list = [source]
+    if exclude_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_id)
+    with db_session() as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [row[0] for row in rows]

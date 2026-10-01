@@ -35,19 +35,28 @@ function ActionCard({ action, onApprove, onReject, onProposeTime, busy }) {
 
       <div className="mt-4 flex gap-2">
         {action.category === 'schedule' && !action.proposed_time && (
-          <button disabled={busy} onClick={() => onProposeTime(action.id)}
+          <button disabled={busy} onClick={() => onProposeTime(action)}
             className="px-3 py-1.5 text-sm rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">
             Propose time
           </button>
         )}
-        <button disabled={busy} onClick={() => onApprove(action.id)}
-          className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
-          Approve
-        </button>
-        <button disabled={busy} onClick={() => onReject(action.id)}
-          className="px-3 py-1.5 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50">
-          Reject
-        </button>
+        {action.category === 'deadline' ? (
+          <button disabled={busy} onClick={() => onReject(action)}
+            className="px-3 py-1.5 text-sm rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">
+            Dismiss
+          </button>
+        ) : (
+          <>
+            <button disabled={busy} onClick={() => onApprove(action)}
+              className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+              Approve
+            </button>
+            <button disabled={busy} onClick={() => onReject(action)}
+              className="px-3 py-1.5 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50">
+              Reject
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -60,6 +69,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const loadActions = useCallback(async () => {
     setLoading(true)
@@ -95,17 +105,49 @@ export default function App() {
     }
   }
 
+  // fn should return a success message string (or null/undefined for no toast)
   async function withBusy(id, fn) {
     setBusyId(id)
     setError(null)
     try {
-      await fn()
+      const message = await fn()
       await loadActions()
+      if (message) {
+        setToast(message)
+        setTimeout(() => setToast(null), 2500)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
       setBusyId(null)
     }
+  }
+
+  function handleApprove(action) {
+    withBusy(action.id, async () => {
+      const result = await api.approveAction(action.id)
+      if (action.category === 'reply') {
+        return result.gmail_draft_id ? 'Draft ready in Gmail' : 'Approved (demo mode — no real draft created)'
+      }
+      if (action.category === 'schedule') {
+        return result.calendar_event_id ? 'Event added to Calendar' : 'Approved (demo mode — no real event created)'
+      }
+      return 'Approved'
+    })
+  }
+
+  function handleReject(action) {
+    withBusy(action.id, async () => {
+      await api.rejectAction(action.id)
+      return action.category === 'deadline' ? 'Dismissed' : 'Rejected'
+    })
+  }
+
+  function handleProposeTime(action) {
+    withBusy(action.id, async () => {
+      await api.proposeTime(action.id)
+      return 'Time proposed'
+    })
   }
 
   return (
@@ -146,9 +188,7 @@ export default function App() {
         <div className="space-y-3">
           {actions.map((action) => (
             <ActionCard key={action.id} action={action} busy={busyId === action.id}
-              onApprove={(id) => withBusy(id, () => api.approveAction(id))}
-              onReject={(id) => withBusy(id, () => api.rejectAction(id))}
-              onProposeTime={(id) => withBusy(id, () => api.proposeTime(id))}
+              onApprove={handleApprove} onReject={handleReject} onProposeTime={handleProposeTime}
             />
           ))}
           {!loading && actions.length === 0 && (
@@ -156,6 +196,12 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg">
+          {toast}
+        </div>
+      )}
     </main>
   )
 }

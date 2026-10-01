@@ -37,7 +37,7 @@ def approve_action(action_id: int):
 
     if action["category"] == "schedule":
         if not action["proposed_time"]:
-            raise HTTPException(status_code=400, detail="No proposed time. Call /propose-time first.")
+            raise HTTPException(status_code=400, detail="Please propose a time before approving this meeting.")
         if action["source"] != "real":
             update_action_status(action_id, "approved")
             return {"id": action_id, "status": "approved", "note": "Demo action: no real calendar event created."}
