@@ -13,6 +13,13 @@ from app.approval_routes import router as approval_router
 from app.calendar_routes import router as calendar_router
 from app.schedule_routes import router as schedule_router
 from app.deadline_routes import router as deadline_router
+import os
+
+# On platforms like Render, credentials.json can't be committed to git, so it's
+# provided as an environment variable and written to disk at startup instead.
+if settings.google_credentials_json and not os.path.exists(settings.google_credentials_file):
+    with open(settings.google_credentials_file, "w") as f:
+        f.write(settings.google_credentials_json)
 
 app = FastAPI(title="Inbox Copilot API", version="0.1.0")
 init_db()
