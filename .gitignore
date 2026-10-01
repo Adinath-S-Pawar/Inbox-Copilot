@@ -17,3 +17,4 @@ token.json
 # OS
 .DS_Store
 Thumbs.db
+backend/clear_demo_actions.py
