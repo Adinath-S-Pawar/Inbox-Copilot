@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from './api'
 
 const CATEGORY_STYLES = {
@@ -69,7 +69,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState(null)
-  const [toast, setToast] = useState(null)
+  const [toast, setToast] = useState(null) // { message, type: 'success' | 'error' }
 
   const loadActions = useCallback(async () => {
     setLoading(true)
@@ -92,6 +92,8 @@ export default function App() {
     loadActions()
   }, [loadActions])
 
+  const inFlightRef = useRef(new Set())
+
   async function handleSync() {
     setLoading(true)
     setError(null)
@@ -105,22 +107,27 @@ export default function App() {
     }
   }
 
-  // fn should return a success message string (or null/undefined for no toast)
-  async function withBusy(id, fn) {
+      async function withBusy(id, fn) {
+    if (inFlightRef.current.has(id)) return // already running; ignore extra clicks
+    inFlightRef.current.add(id)
     setBusyId(id)
     setError(null)
     try {
       const message = await fn()
       await loadActions()
-      if (message) {
-        setToast(message)
-        setTimeout(() => setToast(null), 2500)
-      }
+      if (message) showToast(message, 'success')
     } catch (err) {
       setError(err.message)
+      showToast(err.message, 'error')
     } finally {
+      inFlightRef.current.delete(id)
       setBusyId(null)
     }
+  }
+
+  function showToast(message, type = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
   }
 
   function handleApprove(action) {
@@ -146,7 +153,7 @@ export default function App() {
   function handleProposeTime(action) {
     withBusy(action.id, async () => {
       await api.proposeTime(action.id)
-      return 'Time proposed'
+      return null
     })
   }
 
@@ -197,9 +204,11 @@ export default function App() {
         </div>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg">
-          {toast}
+            {toast && (
+        <div className={`fixed top-5 right-5 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border
+          ${toast.type === 'success' ? 'bg-green-50 text-green-800 border-green-300' : 'bg-red-50 text-red-800 border-red-300'}`}>
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="text-lg leading-none opacity-60 hover:opacity-100">×</button>
         </div>
       )}
     </main>
