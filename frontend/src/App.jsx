@@ -90,6 +90,14 @@ export default function App() {
     loadActions()
   }, [loadActions])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('login') === 'denied') {
+      showToast("Sign-in isn't available for this account yet because is in Google's testing mode. Try Demo mode instead.", 'error')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   const inFlightRef = useRef(new Set())
 
   async function handleSync() {
@@ -123,7 +131,7 @@ export default function App() {
 
   function showToast(message, type = 'success') {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 4000)
+    setTimeout(() => setToast(null), 7000)
   }
 
   function handleApprove(action) {
