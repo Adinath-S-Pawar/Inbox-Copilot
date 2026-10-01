@@ -26,11 +26,17 @@ CREATE TABLE IF NOT EXISTS deadlines (
     email_id TEXT NOT NULL,
     subject TEXT NOT NULL,
     due_date TEXT,
+    body TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (source, email_id)
 );
 """
 
+def _migrate_existing_tables(conn) -> None:
+    """Add columns to tables that existed before this column was introduced."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(actions)").fetchall()]
+    if "body" not in columns:
+        conn.execute("ALTER TABLE actions ADD COLUMN body TEXT")
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(settings.database_file)
@@ -42,6 +48,7 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        _migrate_existing_tables(conn)
 
 
 @contextmanager

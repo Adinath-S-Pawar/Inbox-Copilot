@@ -3,15 +3,14 @@ from app.db import db_session
 
 def create_pending_action(*, source: str, email_id: str, category: str, subject: str,
                             sender_name: str, sender_email: str, reason: str,
-                            draft_text: str | None = None, proposed_time: str | None = None) -> int | None:
-    """Insert a new pending action. Returns its id, or None if one already exists
-    for this (source, email_id) — triage can be re-run safely without duplicating."""
+                            draft_text: str | None = None, proposed_time: str | None = None,
+                            body: str | None = None) -> int | None:
     with db_session() as conn:
         cursor = conn.execute(
             """INSERT OR IGNORE INTO actions
-               (source, email_id, category, subject, sender_name, sender_email, reason, draft_text, proposed_time)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (source, email_id, category, subject, sender_name, sender_email, reason, draft_text, proposed_time),
+               (source, email_id, category, subject, sender_name, sender_email, reason, draft_text, proposed_time, body)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (source, email_id, category, subject, sender_name, sender_email, reason, draft_text, proposed_time, body),
         )
         return cursor.lastrowid if cursor.rowcount else None
 

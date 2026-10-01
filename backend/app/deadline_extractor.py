@@ -22,7 +22,7 @@ def extract_deadlines(actions: list[dict]) -> dict[str, str | None]:
         return {}
 
     numbered = "\n\n".join(
-        f"id: {a['email_id']}\nSubject: {a['subject']}\nContext: {a['reason']}"
+        f"id: {a['email_id']}\nSubject: {a['subject']}\nMessage: {a.get('body') or a['reason']}"
         for a in actions
     )
     raw = generate_text(numbered, system_instruction=DEADLINE_SYSTEM_INSTRUCTION)

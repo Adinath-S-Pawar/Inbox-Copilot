@@ -35,7 +35,7 @@ def sync_emails_to_queue(emails: list[dict], source: str) -> dict:
         action_id = create_pending_action(
             source=source, email_id=email["id"], category=category,
             subject=email["subject"], sender_name=email["sender_name"],
-            sender_email=email["sender_email"], reason=reason,
+            sender_email=email["sender_email"], reason=reason, body=email.get("body"),
         )
         if action_id is not None:
             queued += 1
