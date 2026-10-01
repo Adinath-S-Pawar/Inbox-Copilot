@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.actions_repo import get_action, set_action_error, update_action_status
 from app.gmail_drafts import create_gmail_draft
 from app.gmail_service import NotAuthenticatedError
+from app.calendar_events import create_tentative_event
 
 router = APIRouter(prefix="/actions", tags=["approval"])
 
@@ -34,7 +35,27 @@ def approve_action(action_id: int):
         update_action_status(action_id, "approved")
         return {"id": action_id, "status": "approved", "gmail_draft_id": gmail_draft_id}
 
-    # schedule and deadline actions: real Gmail/Calendar side effects arrive in Steps 17-19.
+    if action["category"] == "schedule":
+        if not action["proposed_time"]:
+            raise HTTPException(status_code=400, detail="No proposed time. Call /propose-time first.")
+        if action["source"] != "real":
+            update_action_status(action_id, "approved")
+            return {"id": action_id, "status": "approved", "note": "Demo action: no real calendar event created."}
+        try:
+            event_id = create_tentative_event(
+                summary=f"Re: {action['subject']}",
+                start_iso=action["proposed_time"],
+                attendee_email=action["sender_email"],
+            )
+        except NotAuthenticatedError:
+            raise HTTPException(status_code=401, detail="Not signed in. Visit /auth/login first.")
+        except RuntimeError as exc:
+            set_action_error(action_id, str(exc))
+            raise HTTPException(status_code=502, detail=str(exc))
+        update_action_status(action_id, "approved")
+        return {"id": action_id, "status": "approved", "calendar_event_id": event_id}
+
+    # deadline actions: tracked in Step 19, no external side effect to approve here.
     update_action_status(action_id, "approved")
     return {"id": action_id, "status": "approved"}
 

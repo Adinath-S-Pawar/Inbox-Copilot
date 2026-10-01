@@ -57,3 +57,10 @@ def set_action_error(action_id: int, error_message: str) -> bool:
             (f"Approval failed: {error_message}", action_id),
         )
         return cursor.rowcount > 0
+    
+def set_proposed_time(action_id: int, proposed_time: str) -> bool:
+    with db_session() as conn:
+        cursor = conn.execute(
+            "UPDATE actions SET proposed_time = ? WHERE id = ?", (proposed_time, action_id)
+        )
+        return cursor.rowcount > 0
