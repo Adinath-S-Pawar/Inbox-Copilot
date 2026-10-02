@@ -27,4 +27,5 @@ export const api = {
   generateDrafts: (source) => request(`/drafts/generate?source=${source}`, { method: "POST" }),
   syncDeadlines: (source) => request(`/deadlines/sync?source=${source}`, { method: "POST" }),
   getDeadlines: (source) => request(`/deadlines?source=${source}`),
+  getDemoActions: () => request("/demo/actions"),
 }

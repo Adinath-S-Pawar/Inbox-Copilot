@@ -62,6 +62,14 @@ function ActionCard({ action, onApprove, onReject, onProposeTime, busy }) {
   )
 }
 
+function makeSlotTime(index) {
+  const base = new Date()
+  base.setDate(base.getDate() + 1)
+  base.setHours(9, 0, 0, 0)
+  base.setMinutes(base.getMinutes() + index * 30)
+  return base.toISOString()
+}
+
 export default function App() {
   const [source, setSource] = useState('demo')
   const [authenticated, setAuthenticated] = useState(false)
@@ -69,43 +77,56 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [toast, setToast] = useState(null)
+  const inFlightRef = useRef(new Set())
+  const takenSlotsRef = useRef(new Set())
 
-  const loadActions = useCallback(async () => {
+  function showToast(message, type = 'success') {
+    setToast({ message, type })
+    const duration = Math.min(10000, Math.max(3000, message.length * 70))
+    setTimeout(() => setToast(null), duration)
+  }
+
+  const loadRealActions = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.getActions(source, 'pending')
+      const data = await api.getActions('real', 'pending')
       setActions(data.actions)
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
       setLoading(false)
     }
-  }, [source])
+  }, [])
 
   useEffect(() => {
     api.authStatus().then((d) => setAuthenticated(d.authenticated)).catch(() => setAuthenticated(false))
   }, [])
 
   useEffect(() => {
-    loadActions()
-  }, [loadActions])
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('login') === 'denied') {
-      showToast("Sign-in isn't available for this account yet because is in Google's testing mode. Try Demo mode instead.", 'error')
+      showToast("Sign-in isn't available for this account yet — this app is in Google's testing mode. Try Demo mode instead.", 'error')
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
 
-  const inFlightRef = useRef(new Set())
+  useEffect(() => {
+    if (source === 'real') loadRealActions()
+    else setActions([]) // demo actions are only loaded via the Sync button, see below
+  }, [source, loadRealActions])
 
   async function handleSync() {
     setLoading(true)
     try {
-      await api.syncInbox(source)
-      await api.generateDrafts(source)
-      await loadActions()
+      if (source === 'demo') {
+        const data = await api.getDemoActions() // stateless: computed fresh, nothing saved server-side
+        setActions(data.actions)
+        takenSlotsRef.current = new Set()
+      } else {
+        await api.syncInbox('real')
+        await api.generateDrafts('real')
+        await loadRealActions()
+      }
     } catch (err) {
       showToast(err.message, 'error')
     } finally {
@@ -119,7 +140,6 @@ export default function App() {
     setBusyId(id)
     try {
       const message = await fn()
-      await loadActions()
       if (message) showToast(message, 'success')
     } catch (err) {
       showToast(err.message, 'error')
@@ -129,34 +149,51 @@ export default function App() {
     }
   }
 
-  function showToast(message, type = 'success') {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 7000)
-  }
-
   function handleApprove(action) {
+    if (action.category === 'schedule' && !action.proposed_time) {
+      showToast('Please propose a time before approving this meeting.', 'error')
+      return
+    }
     withBusy(action.id, async () => {
+      if (source === 'demo') {
+        setActions((prev) => prev.filter((a) => a.id !== action.id))
+        return action.category === 'reply' ? 'Approved (demo mode — no real draft created)' : 'Approved (demo mode)'
+      }
       const result = await api.approveAction(action.id)
-      if (action.category === 'reply') {
-        return result.gmail_draft_id ? 'Draft ready in Gmail' : 'Approved (demo mode — no real draft created)'
-      }
-      if (action.category === 'schedule') {
-        return result.calendar_event_id ? 'Event added to Calendar' : 'Approved (demo mode — no real event created)'
-      }
+      await loadRealActions()
+      if (action.category === 'reply') return result.gmail_draft_id ? 'Draft ready in Gmail' : 'Approved'
+      if (action.category === 'schedule') return result.calendar_event_id ? 'Event added to Calendar' : 'Approved'
       return 'Approved'
     })
   }
 
   function handleReject(action) {
     withBusy(action.id, async () => {
+      if (source === 'demo') {
+        if (action.category === 'schedule' && action._slotIndex !== undefined) {
+          takenSlotsRef.current.delete(action._slotIndex)
+        }
+        setActions((prev) => prev.filter((a) => a.id !== action.id))
+        return action.category === 'deadline' ? 'Dismissed' : 'Rejected'
+      }
       await api.rejectAction(action.id)
+      await loadRealActions()
       return action.category === 'deadline' ? 'Dismissed' : 'Rejected'
     })
   }
 
   function handleProposeTime(action) {
     withBusy(action.id, async () => {
+      if (source === 'demo') {
+        let index = 0
+        while (takenSlotsRef.current.has(index)) index++
+        takenSlotsRef.current.add(index)
+        const time = makeSlotTime(index)
+        setActions((prev) => prev.map((a) => (a.id === action.id ? { ...a, proposed_time: time, _slotIndex: index } : a)))
+        return null
+      }
       await api.proposeTime(action.id)
+      await loadRealActions()
       return null
     })
   }
@@ -168,11 +205,11 @@ export default function App() {
           <h1 className="text-2xl font-bold text-slate-900">Inbox Copilot</h1>
           <div className="flex items-center gap-2">
             <button onClick={() => setSource('demo')}
-              className={`px-3 py-1.5 text-sm rounded ${source === 'demo' ? 'bg-slate-900 text-white' : 'bg-slate-200'}`}>
+              className={`px-3 py-2 text-sm rounded leading-none ${source === 'demo' ? 'bg-slate-900 text-white' : 'bg-slate-200'}`}>
               Demo
             </button>
             <button onClick={() => setSource('real')}
-              className={`px-3 py-1.5 text-sm rounded ${source === 'real' ? 'bg-slate-900 text-white' : 'bg-slate-200'}`}>
+              className={`px-3 py-2 text-sm rounded leading-none ${source === 'real' ? 'bg-slate-900 text-white' : 'bg-slate-200'}`}>
               My Inbox
             </button>
           </div>
@@ -181,12 +218,16 @@ export default function App() {
         {source === 'real' && !authenticated && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
             Not signed in. <a href={api.loginUrl()} className="underline font-medium">Sign in with Google</a> to use your real inbox.
+            This app is in Google's testing mode — sign-in only works for pre-approved test accounts.
           </div>
         )}
 
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleSync} disabled={loading}
-            className="px-4 py-2 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            {loading && (
+              <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
             {loading ? 'Syncing…' : 'Sync inbox'}
           </button>
           <span className="text-sm text-slate-500">{actions.length} pending</span>
