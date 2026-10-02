@@ -18,3 +18,5 @@ token.json
 .DS_Store
 Thumbs.db
 backend/clear_demo_actions.py
+backend/clear_real_local.py
+frontend/.env.bak
